@@ -1,4 +1,6 @@
+import os
 import re
+import sys
 import time
 import urllib
 
@@ -8,31 +10,45 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from retrying import retry
 
-from database import MongoDB
-from url_formats import (buff_index_json_fmt, c5_search_page_fmt,
-                         igxe_search_page_fmt, steam_item_page_fmt,
-                         uuyp_search_page_fmt)
-from utils import asian_proxies, default_header, random_delay
+from pymongo import MongoClient
 
+from CS_GO.cs_go_test.SteamTradingSiteTracker.scripts.url_formats import (buff_index_json_fmt, c5_search_page_fmt,
+                                                                          igxe_search_page_fmt, steam_item_page_fmt,
+                                                                          uuyp_search_page_fmt)
+from CS_GO.cs_go_test.SteamTradingSiteTracker.scripts.utils import asian_proxies, default_header, random_delay
+from CS_GO.cs_go_test.SteamTradingSiteTracker.scripts.database import MongoDB
+
+dir_path = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.abspath(__file__))))
+sys.path.append(dir_path)
+print(dir_path)
 logger.add('../log/update_meta.log', enqueue=True, rotation='1 MB', backtrace=True, diagnose=True)
 
 # ==== configs ====
 META_EXPIRE_TIME = 14 * 24 * 60 * 60
 
 # ==== init ====
-
+proxies = {
+    'http': 'https://127.0.0.1:33210',
+    'https': 'https://127.0.0.1:33210'
+}
 # load buff_cookie
-with open('./secrets/buff_cookie.txt', 'r', encoding='utf-8') as f:
+with open('E://zingfront/remoteProject/CS_GO/cs_go_test/SteamTradingSiteTracker/scripts/secrets/buff_cookie.txt', 'r',
+          encoding='utf-8') as f:
     buff_cookie = f.read().strip()
     assert 'session' in buff_cookie
 
 # load c5 cookie
-with open('./secrets/c5_cookie.txt', 'r', encoding='utf-8') as f:
+with open('E://zingfront/remoteProject/CS_GO/cs_go_test/SteamTradingSiteTracker/scripts/secrets/c5_cookie.txt', 'r',
+          encoding='utf-8') as f:
     c5_cookie = f.read().strip()
-    assert 'C5Login' in c5_cookie
+    assert 'NC5_newC5login' in c5_cookie
 
 # load UUYP cookie
-with open("./secrets/uuyp_cookie.txt", "r", encoding="utf-8") as f:
+with open("E://zingfront/remoteProject/CS_GO/cs_go_test/SteamTradingSiteTracker/scripts/secrets/uuyp_cookie.txt", "r",
+          encoding="utf-8") as f:
     uuyp_cookie = f.read().strip()
     assert "Bearer" in uuyp_cookie
 
@@ -86,8 +102,13 @@ def get_uuyp_id(name:str):
 
 
 @retry(stop_max_attempt_number=2, wait_fixed=20000)
-def get_market_id(hash_name:str, appid:int):
-    r = requests.get(steam_item_page_fmt.format(hash_name=urllib.parse.quote(hash_name), appid=appid), headers=headers, timeout=30)
+def get_market_id(hash_name: str, appid: int):
+    proxies = {
+        'http': 'https://127.0.0.1:33210',
+        'https': 'https://127.0.0.1:33210'
+    }
+    r = requests.get(steam_item_page_fmt.format(hash_name=urllib.parse.quote(hash_name), appid=appid), headers=headers,
+                     timeout=30, proxies=proxies)
     assert r.status_code == 200, "Falied to get market id of " + hash_name + " with code: " + str(r.status_code)
 
     try:
@@ -98,9 +119,11 @@ def get_market_id(hash_name:str, appid:int):
 
     return market_id
 
+
 @retry(stop_max_attempt_number=2, wait_fixed=10000)
-def get_igxe_id(game:str, name:str):
-    r = requests.get(igxe_search_page_fmt.format(game=game, name=urllib.parse.quote(name)), headers=headers, timeout=30)
+def get_igxe_id(game: str, name: str):
+    r = requests.get(igxe_search_page_fmt.format(game=game, name=urllib.parse.quote(name)), headers=headers, timeout=30,
+                     proxies=proxies)
     assert r.status_code == 200, "Falied to get igxe id of " + name + " with code: " + str(r.status_code)
 
     # parse html
@@ -121,8 +144,7 @@ def get_igxe_id(game:str, name:str):
 
 @retry(stop_max_attempt_number=2, wait_fixed=2000)
 def get_c5_id(game:str, name:str):
-
-    r = requests.get(c5_search_page_fmt.format(name=name, game=game), timeout=20)
+    r = requests.get(c5_search_page_fmt.format(name=name, game=game, proxies=proxies), timeout=20)
     assert r.status_code == 200, "Falied to get c5 id of " + name + " with code: " + str(r.status_code)
 
     c5_id = 0
@@ -235,14 +257,18 @@ if __name__ == '__main__':
         to_update_list = []
         for info in game_info:
             INITIAL_PAGE_URL = buff_index_json_fmt.format(game=info['game'], page_num=9999)
-            page_data = requests.get(INITIAL_PAGE_URL, headers=headers).json()['data']
+            proxies = {
+                'http': 'https://127.0.0.1:33210',
+                'https': 'https://127.0.0.1:33210'
+            }
+            page_data = requests.get(INITIAL_PAGE_URL, headers=headers, proxies=proxies).json()['data']
 
             page_count = page_data['total_page']
             item_count = page_data['total_count']
             logger.info('Game {:s}: {:d} items in {:d} pages', info['game'], item_count, page_count)
 
-            for page_num in range(1, page_count+1):
-                to_update_list.append({'page_num':page_num, **info})
+            for page_num in range(1, page_count + 1):
+                to_update_list.append({'page_num': page_num, **info})
 
             random_delay()
 

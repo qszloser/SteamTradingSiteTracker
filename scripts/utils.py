@@ -5,17 +5,17 @@ from typing import Union
 import numpy as np
 
 default_header = {
-    'User-Agent': 'SOME_UA_STRING',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/111.0',
 }
 
 asian_proxies = {
-    'http': 'SOME_PROXY',
-    'https': 'SOME_PROXY'
+    'http': 'https://127.0.0.1:33210',
+    'https': 'https://127.0.0.1:33210'
 }
 
 global_proxies = {
-    'http': 'SOME_PROXY',
-    'https': 'SOME_PROXY'
+    'http': 'https://127.0.0.1:33210',
+    'https': 'https://127.0.0.1:33210'
 }
 
 

@@ -1,11 +1,14 @@
 import pymongo
 
-MONGODB_PORT = "YOUR_MONGODB_PORT"
+MONGODB_PORT = 27017
+
 
 class MongoDB():
 
-    def __init__(self, collection, database='steam'):
-        self.client = pymongo.MongoClient(host='localhost', port=MONGODB_PORT)
+    def __init__(self, collection, database='root'):
+        mongo_url = 'mongodb://{0}:{1}@{2}:{3}/root'.format("root", "123456", '114.116.25.73', MONGODB_PORT)
+        self.client = pymongo.MongoClient(mongo_url)
+        # self.client = pymongo.MongoClient(host='114.116.25.73', port=MONGODB_PORT,username="root", password="123456")
         self.database = self.client[database]
         self.col = self.database[collection]
 
@@ -13,8 +16,9 @@ class MongoDB():
         return set([item['buff_id'] for item in self.col.find()])
 
     def get_item(self, buff_id):
+        res_count = self.col.count_documents({'buff_id': buff_id})
         res = self.col.find({'buff_id': buff_id})
-        if res.count():
+        if res_count:
             return res[0]
         else:
             return None
